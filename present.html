@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merry Christmas My Love ❤️</title>
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@300&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
+            overflow: hidden;
+            height: 100vh;
+            color: white;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        /* Màn hình chờ (Hộp quà) */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            background: rgba(0,0,0,0.95);
+            transition: opacity 1.5s ease-out;
+        }
+
+        .gift-box {
+            font-size: 80px;
+            cursor: pointer;
+            animation: bounce 2s infinite;
+            text-shadow: 0 0 20px #ff0040;
+            transition: transform 0.3s;
+        }
+        .gift-box:hover { transform: scale(1.2); }
+        
+        .click-hint {
+            margin-top: 20px;
+            font-size: 18px;
+            opacity: 0.8;
+            letter-spacing: 2px;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-20px);}
+            60% {transform: translateY(-10px);}
+        }
+
+        /* Các lớp Canvas */
+        canvas { position: absolute; top: 0; left: 0; }
+        #canvas-tree { z-index: 1; filter: drop-shadow(0 0 5px rgba(6, 78, 6, 0.5)); opacity: 0; transition: opacity 2s ease-in; }
+        #canvas-snow { z-index: 2; pointer-events: none; }
+        #canvas-fireworks { z-index: 3; pointer-events: none; }
+
+        /* Lời chúc */
+        #message {
+            position: absolute;
+            bottom: 40px;
+            width: 100%;
+            text-align: center;
+            z-index: 4;
+            font-family: 'Great Vibes', cursive;
+            font-size: 0px; 
+            color: #ff0040;
+            text-shadow: 0 0 10px #ff0040, 0 0 20px red;
+            transition: font-size 2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+        }
+        
+        /* Nút nhạc */
+        #music-control {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            opacity: 0.5;
+            cursor: pointer;
+            display: none;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" onclick="startShow()">
+        <div class="gift-box">🎁</div>
+        <div class="click-hint">Click để mở quà của em</div>
+    </div>
+
+    <canvas id="canvas-tree"></canvas>
+    <canvas id="canvas-snow"></canvas>
+    <canvas id="canvas-fireworks"></canvas>
+
+    <div id="message">Merry Christmas my Lover</div>
+
+    <audio id="bg-music" loop>
+        <source src="christmas-holiday-festive-cheer-snow-427231.mp3" type="audio/mpeg">
+    </audio>
+    
+    <div id="music-control" onclick="toggleMusic()">🎵</div>
+
+<script>
+    // --- CẤU HÌNH MÀU SẮC ---
+    const config = {
+        treeColor: "#228b22", // Forest Green: Xanh lá đậm tự nhiên
+        starColor: "#ffd700",
+        lightColors: ['#ff0040', '#ffff00', '#00ff00', '#00ffff'], 
+    };
+
+    // --- KHỞI TẠO CANVAS ---
+    const cTree = document.getElementById('canvas-tree');
+    const ctxTree = cTree.getContext('2d');
+    const cSnow = document.getElementById('canvas-snow');
+    const ctxSnow = cSnow.getContext('2d');
+    const cFire = document.getElementById('canvas-fireworks');
+    const ctxFire = cFire.getContext('2d');
+
+    let w, h;
+    let lights = []; 
+
+    function resize() {
+        w = window.innerWidth;
+        h = window.innerHeight;
+        [cTree, cSnow, cFire].forEach(c => { c.width = w; c.height = h; });
+        drawStaticTree(); 
+    }
+    window.addEventListener('resize', resize);
+    
+    // --- 1. VẼ CÂY ---
+    const turtle = {
+        x: 0, y: 0, angle: -90,
+        forward: function(d) {
+            const rad = this.angle * Math.PI / 180;
+            const newX = this.x + d * Math.cos(rad);
+            const newY = this.y + d * Math.sin(rad);
+            ctxTree.beginPath();
+            ctxTree.moveTo(this.x, this.y);
+            ctxTree.lineTo(newX, newY);
+            ctxTree.stroke();
+            this.x = newX; this.y = newY;
+        },
+        backward: function(d) { this.forward(-d); },
+        right: function(deg) { this.angle += deg; },
+        left: function(deg) { this.angle -= deg; }
+    };
+
+    function drawStar(size) {
+        ctxTree.save();
+        ctxTree.translate(turtle.x, turtle.y);
+        ctxTree.beginPath();
+        ctxTree.fillStyle = config.starColor;
+        ctxTree.shadowBlur = 20; ctxTree.shadowColor = "yellow"; 
+        for(let i=0; i<5; i++) {
+            ctxTree.lineTo(0, -size/2);
+            ctxTree.rotate(Math.PI/5);
+            ctxTree.lineTo(0, -size/5);
+            ctxTree.rotate(Math.PI/5);
+        }
+        ctxTree.fill();
+        ctxTree.restore();
+    }
+
+    function recursiveTree(d, s) {
+        if (d <= 0) return;
+        turtle.forward(s);
+        if (d % 2 === 0 || d === 1) {
+             lights.push({x: turtle.x, y: turtle.y, color: config.lightColors[Math.floor(Math.random()*4)]});
+        }
+        recursiveTree(d - 1, s * 0.8);
+        turtle.right(120);
+        recursiveTree(d - 3, s * 0.5);
+        turtle.right(120);
+        recursiveTree(d - 3, s * 0.5);
+        turtle.right(120);
+        turtle.backward(s);
+    }
+
+    function drawStaticTree() {
+        lights = []; 
+        ctxTree.clearRect(0, 0, w, h);
+        const n = 100.0;
+        const startY = h / 2 + 50; 
+        
+        turtle.x = w / 2; turtle.y = startY; turtle.angle = -90;
+
+        // Vẫn giữ nét dày để dễ nhìn trên nền đen, nhưng màu đậm hơn
+        ctxTree.lineWidth = 3; 
+        // Giảm shadowBlur xuống còn 5 để bớt ảo
+        ctxTree.shadowBlur = 5;
+        ctxTree.shadowColor = config.treeColor;
+
+        ctxTree.strokeStyle = "orange"; 
+        turtle.forward(3 * n);
+        drawStar(n);
+
+        ctxTree.strokeStyle = config.treeColor; 
+        turtle.backward(n * 4.8);
+        recursiveTree(15, n);
+        
+        // Vẽ phần trang trí dưới gốc
+        turtle.backward(n / 2);
+        ctxTree.shadowBlur = 0; 
+        
+        for (let i = 0; i < 150; i++) {
+            const a = 200 - 400 * Math.random();
+            const b = 10 - 20 * Math.random();
+            const oldX = turtle.x; const oldY = turtle.y; const oldAng = turtle.angle;
+            
+            turtle.forward(b); turtle.left(90); turtle.forward(a);
+            
+            let c = (Math.floor(Math.random() * 2) === 0) ? 'tomato' : 'wheat';
+            ctxTree.beginPath(); ctxTree.fillStyle = c;
+            ctxTree.arc(turtle.x, turtle.y, 2, 0, Math.PI*2); ctxTree.fill();
+            
+            turtle.x = oldX; turtle.y = oldY; turtle.angle = oldAng;
+        }
+    }
+
+    // --- 2. HIỆU ỨNG ĐỘNG ---
+    const particles = [];
+    function loop() {
+        ctxSnow.clearRect(0,0,w,h);
+        ctxFire.clearRect(0,0,w,h);
+
+        // Đèn nhấp nháy
+        lights.forEach(l => {
+            if(Math.random() > 0.92) {
+                ctxSnow.beginPath(); ctxSnow.arc(l.x, l.y, 4, 0, Math.PI*2);
+                ctxSnow.fillStyle = "white"; ctxSnow.shadowBlur = 15; ctxSnow.shadowColor = l.color;
+                ctxSnow.fill(); ctxSnow.shadowBlur = 0;
+            } else {
+                ctxSnow.beginPath(); ctxSnow.arc(l.x, l.y, 2.5, 0, Math.PI*2);
+                ctxSnow.fillStyle = l.color; ctxSnow.fill();
+            }
+        });
+
+        // Tuyết rơi
+        if (Math.random() < 0.3) { 
+            particles.push({
+                x: Math.random() * w, y: -10,
+                vx: (Math.random() - 0.5) * 1, vy: Math.random() * 2 + 1,
+                size: Math.random() * 2 + 1, type: 'snow'
+            });
+        }
+
+        // Cập nhật Particles
+        for(let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.x += p.vx; p.y += p.vy;
+            
+            if (p.type === 'snow') {
+                ctxSnow.fillStyle = "white"; ctxSnow.globalAlpha = 0.7;
+                ctxSnow.beginPath(); ctxSnow.arc(p.x, p.y, p.size, 0, Math.PI*2); ctxSnow.fill();
+                p.x += Math.sin(p.y / 50) * 0.5;
+                if(p.y > h) particles.splice(i, 1);
+            } 
+            else if (p.type === 'fire') { 
+                p.vy += 0.05; p.alpha -= 0.015;
+                ctxFire.fillStyle = p.color; ctxFire.globalAlpha = p.alpha;
+                ctxFire.beginPath(); ctxFire.arc(p.x, p.y, p.size, 0, Math.PI*2); ctxFire.fill();
+                if(p.alpha <= 0) particles.splice(i, 1);
+            }
+        }
+        ctxFire.globalAlpha = 1;
+        requestAnimationFrame(loop);
+    }
+
+    // --- 3. PHÁO HOA ---
+    function createExplosion(x, y) {
+        for(let i=0; i<40; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 4 + 2;
+            particles.push({
+                x: x, y: y,
+                vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                size: Math.random() * 3 + 1,
+                color: config.lightColors[Math.floor(Math.random() * config.lightColors.length)],
+                alpha: 1, type: 'fire'
+            });
+        }
+    }
+    window.addEventListener('mousedown', (e) => createExplosion(e.clientX, e.clientY));
+    window.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0]; createExplosion(touch.clientX, touch.clientY);
+    });
+
+    // --- 4. START ---
+    function startShow() {
+        const screen = document.getElementById('start-screen');
+        const bgMusic = document.getElementById('bg-music');
+        const treeCanvas = document.getElementById('canvas-tree');
+        const msg = document.getElementById('message');
+        const musicBtn = document.getElementById('music-control');
+
+        screen.style.opacity = 0;
+        setTimeout(() => screen.style.display = 'none', 1500);
+
+        bgMusic.volume = 0.5;
+        bgMusic.play().catch(() => {});
+        musicBtn.style.display = 'block';
+
+        setTimeout(() => { treeCanvas.style.opacity = 1; }, 500);
+
+        setTimeout(() => {
+            msg.style.fontSize = "60px";
+            createExplosion(w/2, h/3);
+            setTimeout(() => createExplosion(w/3, h/2), 400);
+            setTimeout(() => createExplosion(w*2/3, h/2), 800);
+        }, 2000);
+    }
+    
+    function toggleMusic() {
+        const bgMusic = document.getElementById('bg-music');
+        if(bgMusic.paused) bgMusic.play();
+        else bgMusic.pause();
+    }
+
+    resize();
+    loop();
+
+</script>
+</body>
+</html>
